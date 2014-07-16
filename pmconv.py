@@ -23,7 +23,9 @@ def orbPM(pm, zstg, xoff=0, yoff=0):
     # empty strings
     index=''
     positions=''
-    seperator='0000DD24664052B8884298AEC04285EBB140BE9F3A40486186422F1DC242C3F590400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+    seperator='0000DD24664052B8884298AEC04285EBB140BE9F3A40486186422F1DC242C3F59040'
+    seperator+=seperator+(struct.pack('x')*4).encode('hex')
+    
     
     for d in dlist:
         i=struct.pack('<h', d['Sample'])# entry index (16-bit short?, 2 bytes)
@@ -31,15 +33,16 @@ def orbPM(pm, zstg, xoff=0, yoff=0):
         i+=struct.pack('<h', 1)*2   # (1) num points to scan (01 for point, for line length, matrix width)
                                     # (2) num points to scan (01 for point & line, matrix height)      
         i=binascii.hexlify('Center                  ')+i.encode('hex')
-        x=struct.pack('<f', 100-d['x']+xoff)
+        x=struct.pack('<f', 100-d['x']-xoff)
         y=struct.pack('<f', d['y']+yoff)
         z=struct.pack('<f', zstg)
-        p=x+y+x+y+z+z
-        p+=struct.pack('x')*4 # 4 byte padding
+        p=x+y+x+y+z+z # x start, y start, x end, y end, z start, z end
+        p+=struct.pack('x')*4 # 4 byte padding (probably for rotation info but our stage doesn't have that)
         p=p.encode('hex')
         index+=i
         positions+=p
     
+    # concatenate hex string and convert to byte code    
     bytecode=binascii.unhexlify(header+index+seperator+positions)
     
     #os.chdir('/home/dan/code/orbisTools')
