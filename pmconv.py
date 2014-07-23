@@ -23,8 +23,9 @@ def orbPM(pm, zstg, xoff=0, yoff=0):
     # empty strings
     index=''
     positions=''
-    seperator='0000DD24664052B8884298AEC04285EBB140BE9F3A40486186422F1DC242C3F59040'
-    seperator+=seperator+(struct.pack('x')*4).encode('hex')
+    #seperator='0000DD24664052B8884298AEC04285EBB140BE9F3A40486186422F1DC242C3F59040'
+    seperator='0000DD24664052B8884298AEC04285EBB140BE9F3A40486186422F1DC242C3F590400000'
+    seperator=seperator+(struct.pack('x')*60).encode('hex')
     
     
     for d in dlist:

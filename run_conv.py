@@ -1,7 +1,9 @@
 from pmconv import *
 p='0027_flat2_y.txt'
-z=97.2
-xoff=0
-yoff=0
+#p='genstage3.txt'
+z=97.20
+xoff=-1.57
+yoff=-2.0
 
-orbPM(p, z, xoff, yoff)
+orbPM(p, zstg=z, xoff=xoff, yoff=yoff)
+#orbPM(p, zstg=97.2)
