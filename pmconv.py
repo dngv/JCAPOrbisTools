@@ -48,6 +48,6 @@ def orbPM(pm, zstg, xoff=0, yoff=0):
     
     #os.chdir('/home/dan/code/orbisTools')
     stgout=pm[:-3]+'stg'
-    f=open(stgout, mode='w')
+    f=open(stgout, mode='wb') # writing binary
     f.write(bytecode)
     f.close()
