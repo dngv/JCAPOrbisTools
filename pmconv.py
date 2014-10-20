@@ -1,15 +1,67 @@
 from readplatemap import readsingleplatemaptxt
-import struct, binascii
+import struct, binascii, math
 
 
 # generates stage file with same name as platemap, .stg extension
-def orbPM(pm, zstg, xoff=0, yoff=0):
+#def orbPM(pm, zstg, xoff=0, yoff=0):
+def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy):
+    xorg=100-xtweak #tweak the left edge origin (orbis motor can travel ~101mm +x)
     if not 0<=zstg<=100:
         print 'Invalid z-height'
     else:
         # assume pm in current working directory
         dlist=readsingleplatemaptxt(pm)
         
+        #a, ax, ay, b, bx, by, c, cx, cy : sample, x-coord, y-coord (orbis convention +x left)
+        
+        #PM coords        
+        pax=dlist[a-1]['x']
+        pay=dlist[a-1]['y']
+        pbx=dlist[b-1]['x']
+        pby=dlist[b-1]['y']
+        pcx=dlist[c-1]['x']
+        pcy=dlist[c-1]['y']
+        
+        #PM x & y diffs (origin sample A)
+        pabx=pbx-pax
+        paby=pby-pay
+        pab=(pabx**2+paby**2)**0.5
+        pacx=pcx-pax
+        pacy=pcy-pay
+        pac=(pabx**2+paby**2)**0.5
+        
+        #Orbis x & y diffs (origin sample A)
+        sabx=xorg-bx-ax
+        saby=by-ay
+        sacx=xorg-cx-ax
+        sacy=cy-ay
+        
+        
+        # calc rotations first
+        rpab=math.atan(paby/pabx)
+        rpac=math.atan(pacy/pacx)
+        rsab=math.atan(saby/sabx)
+        rsac=math.atan(sacy/sacx)
+        
+        rab=rsab-rpab
+        rac=rsac-rpac
+
+        # calc skews on rotated platemap
+        skxab=sabx/(pab*math.cos(rsab))
+        skyab=saby/(pab*math.sin(rsab))
+        
+        skxac=sacx/(pac*math.cos(rsac))
+        skyac=sacy/(pac*math.sin(rsac))
+
+        # skew and map rotation wrt sample A
+        rot=(rab+rac)/2        
+        skx=(skxab+skxac)/2
+        sky=(skyab+skyac)/2
+        
+        # transform PM: apply rotation then skew
+        
+        
+                
         # empty strings
         index=''
         positions=''
@@ -21,8 +73,20 @@ def orbPM(pm, zstg, xoff=0, yoff=0):
         counter=0
         
         for d in dlist:
-            xstg=100-d['x']-xoff
-            ystg=d['y']+yoff
+            xn=d['x']-pax
+            yn=d['y']-pay
+            hn=(xn**2+yn**2)**0.5
+            rn=math.atan(yn/xn)
+            
+            xr=hn*math.cos(rn+rot) # rotate first
+            yr=hn*math.sin(rn+rot)
+            
+            xsk=xr*skx # skew rotated coord
+            ysk=yr*sky
+            
+            xstg=ax-xsk
+            ystg=ay+ysk
+            
             checkx=0<=xstg<=100
             checky=0<=ystg<=100
             if checkx and checky:
@@ -48,9 +112,9 @@ def orbPM(pm, zstg, xoff=0, yoff=0):
         header+=struct.pack('x')*2
         header+=struct.pack('<h', counter)
         header+=struct.pack('x')*20
-        header=header.encode('hex')        
+        header=header.encode('hex')
         
-        # concatenate hex string and convert to byte code    
+        # concatenate hex string and convert to byte code
         bytecode=binascii.unhexlify(header+index+seperator+positions)
         
         #os.chdir('/home/dan/code/orbisTools')
