@@ -1,9 +1,16 @@
 from pmconv import *
-p='0027_flat2_y.txt'
-#p='genstage3.txt'
-z=99.25
-xoff=-1.94
-yoff=-2.0
+pm='0049-04-0830-mp.txt'
+zstg=97.500
+xtweak=0
+a=9
+ax=46.118
+ay=89.100
+b=1365
+bx=46.244
+by=9.330
+c=907
+cx=15.757
+cy=38.970
 
-orbPM(p, zstg=z, xoff=xoff, yoff=yoff)
-#orbPM(p, zstg=97.2)
+
+orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy)

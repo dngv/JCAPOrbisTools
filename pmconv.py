@@ -28,40 +28,50 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy):
         pab=(pabx**2+paby**2)**0.5
         pacx=pcx-pax
         pacy=pcy-pay
-        pac=(pabx**2+paby**2)**0.5
+        pac=(pacx**2+pacy**2)**0.5
         
         #Orbis x & y diffs (origin sample A)
         sabx=xorg-bx-ax
         saby=by-ay
+        sab=(sabx**2+saby**2)**0.5
         sacx=xorg-cx-ax
         sacy=cy-ay
+        sac=(sacx**2+sacy**2)**0.5
         
+        # calc rotations first SAS
+        psab=((pabx-sabx)**2+(paby-saby)**2)**0.5
+        psac=((pacx-sacx)**2+(pacy-sacy)**2)**0.5
         
-        # calc rotations first
-        rpab=math.atan(paby/pabx)
-        rpac=math.atan(pacy/pacx)
-        rsab=math.atan(saby/sabx)
-        rsac=math.atan(sacy/sacx)
+        abangle=(pab**2+sab**2-psab**2)/(2*pab*sab)
+        rab=math.acos(abangle)
         
-        rab=rsab-rpab
-        rac=rsac-rpac
+        acangle=(pac**2+sac**2-psac**2)/(2*pac*sac)
+        rac=math.acos(acangle)
 
         # calc skews on rotated platemap
-        skxab=sabx/(pab*math.cos(rsab))
-        skyab=saby/(pab*math.sin(rsab))
+        skxab=(pabx*math.cos(rab)-paby*math.sin(rab))/sabx
+        skyab=(pabx*math.sin(rab)+paby*math.cos(rab))/saby
         
-        skxac=sacx/(pac*math.cos(rsac))
-        skyac=sacy/(pac*math.sin(rsac))
+        skxac=(pacx*math.cos(rac)-pacy*math.sin(rac))/sacx
+        skyac=(pacx*math.sin(rac)+pacy*math.cos(rac))/sacy
 
+        print(rab)
+        print(rac)
+        
         # skew and map rotation wrt sample A
-        rot=(rab+rac)/2        
-        skx=(skxab+skxac)/2
-        sky=(skyab+skyac)/2
-        
-        # transform PM: apply rotation then skew
-        
-        
-                
+        rot=(rab+rac)/2
+        #skx=(skxab+skxac)/2
+        if sabx>sacx:
+            skx=skxab
+        else:
+            skx=skxac
+
+        #sky=(skyab+skyac)/2
+        if saby>sacy:
+            sky=skyab
+        else:
+            sky=skyac
+			
         # empty strings
         index=''
         positions=''
@@ -75,11 +85,9 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy):
         for d in dlist:
             xn=d['x']-pax
             yn=d['y']-pay
-            hn=(xn**2+yn**2)**0.5
-            rn=math.atan(yn/xn)
             
-            xr=hn*math.cos(rn+rot) # rotate first
-            yr=hn*math.sin(rn+rot)
+            xr=xn*math.cos(rot)-yn*math.sin(rot) # rotate first
+            yr=xn*math.sin(rot)+yn*math.cos(rot)
             
             xsk=xr*skx # skew rotated coord
             ysk=yr*sky
@@ -89,6 +97,7 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy):
             
             checkx=0<=xstg<=100
             checky=0<=ystg<=100
+            
             if checkx and checky:
                 counter+=1
                 i=struct.pack('<h', counter)# entry index (16-bit short?, 2 bytes), don't use sample number in case we remove out-of-range samples
