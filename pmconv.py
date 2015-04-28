@@ -4,8 +4,8 @@ import struct, binascii, math
 
 # generates stage file with same name as platemap, .stg extension
 #def orbPM(pm, zstg, xoff=0, yoff=0):
-def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy):
-    #xorg=100-xtweak #tweak the left edge origin (orbis motor can travel ~101mm +x)
+def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0]):
+#    xorg=100-xtweak #tweak the left edge origin (orbis motor can travel ~101mm +x)
     if not 0<=zstg<=100:
         print 'Invalid z-height'
     else:
@@ -13,14 +13,19 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy):
         dlist=readsingleplatemaptxt(pm)
         
         #a, ax, ay, b, bx, by, c, cx, cy : sample, x-coord, y-coord (orbis convention +x left)
+        #a=origin, b=+ydiff, c=+xdiff (a-b and a-c vectors must be orthogonal)
+        slist=[i['Sample'] for i in dlist]
+        aind=slist.index(a)
+        bind=slist.index(b)
+        cind=slist.index(c)
         
         #PM coords        
-        pax=dlist[a-1]['x']
-        pay=dlist[a-1]['y']
-        pbx=dlist[b-1]['x']
-        pby=dlist[b-1]['y']
-        pcx=dlist[c-1]['x']
-        pcy=dlist[c-1]['y']
+        pax=dlist[aind]['x']
+        pay=dlist[aind]['y']
+        pbx=dlist[bind]['x']
+        pby=dlist[bind]['y']
+        pcx=dlist[cind]['x']
+        pcy=dlist[cind]['y']
         
         #PM x & y diffs (origin sample A)
         pabx=pbx-pax
@@ -31,60 +36,21 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy):
         pac=(pacx**2+pacy**2)**0.5
         
         #Orbis x & y diffs (origin sample A)
-        #sabx=(xorg-bx)-(xorg-ax)
         sabx=ax-bx
         saby=by-ay
         sab=(sabx**2+saby**2)**0.5
-        #sacx=(xorg-cx)-(xorg-ax)
         sacx=ax-cx
         sacy=cy-ay
         sac=(sacx**2+sacy**2)**0.5
         
-        # calc rotations first SAS
-        psab=((pabx-sabx)**2+(paby-saby)**2)**0.5
-        psac=((pacx-sacx)**2+(pacy-sacy)**2)**0.5
-        
-        abangle=(pab**2+sab**2-psab**2)/(2*pab*sab)
-        #signrab=math.asin(saby/sab)-math.asin(paby/pab)
-        rab=math.acos(abangle)
-        
-        acangle=(pac**2+sac**2-psac**2)/(2*pac*sac)
-        #signrac=math.asin(sacy/sac)-math.asin(pacy/pac)
-        rac=math.acos(acangle)
-        
-        if sabx*(saby-paby)>=0:
-            rotsign=1
-        else:
-            rotsign=-1
-        
-        #rot=(rab+rac)/2
-        rot=min(rab,rac)*rotsign
-        
-        #if signrab+signrac>0:
-          #rot=(rab+rac)/2
-          #rot=min(rab,rac)
-        #else:
-          #rot=-(rab+rac)/2
-          #rot=-min(rab,rac)
-        
-        # calc skews on rotated platemap
-        skxab=sabx/(pabx*math.cos(rot)-paby*math.sin(rot))
-        skyab=saby/(pabx*math.sin(rot)+paby*math.cos(rot))
-        
-        skxac=(pacx*math.cos(rot)-pacy*math.sin(rot))/sacx
-        skyac=(pacx*math.sin(rot)+pacy*math.cos(rot))/sacy
+        rac=math.atan(sacy/sacx)
+        rab=math.atan(sabx/saby)
+        rot=rac #epson printer has non-linear elongation in y, use x instead
 
-        if abs(sabx)>abs(sacx):
-            skx=skxab
-        else:
-            skx=skxac
-
-        if abs(saby)>abs(sacy):
-            sky=skyab
-        else:
-            sky=skyac
+        skx=sac/pac
+        sky=sab/pab
         
-        print(str(skx) + ',' + str(sky))
+        print('x_skew = ' + str(skx) + ', y_skew = ' + str(sky) + ' , rot = ' + str(rot))
 			
         # empty strings
         index=''
@@ -97,7 +63,7 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy):
         counter=0
         
         for d in dlist:
-            if d['code']==1:
+            if d['code'] not in keepcodes:
               continue
             xn=d['x']-pax
             yn=d['y']-pay
@@ -108,7 +74,7 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy):
             xsk=xr*skx # skew rotated coord
             ysk=yr*sky
             
-            xstg=ax-xsk-xtweak
+            xstg=ax-xsk+xtweak
             ystg=ay+ysk
             
             checkx=0<=xstg<=100
