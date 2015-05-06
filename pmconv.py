@@ -4,7 +4,7 @@ import struct, binascii, math
 
 # generates stage file with same name as platemap, .stg extension
 #def orbPM(pm, zstg, xoff=0, yoff=0):
-def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0]):
+def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctmod=0):
 #    xorg=100-xtweak #tweak the left edge origin (orbis motor can travel ~101mm +x)
     if not 0<=zstg<=100:
         print 'Invalid z-height'
@@ -65,6 +65,8 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0]):
         for d in dlist:
             if d['code'] not in keepcodes:
               continue
+            if pctmod > 0 and sum([100*d[i]%pctmod for i in ['A', 'B', 'C', 'D']]) > 0:
+              continue
             xn=d['x']-pax
             yn=d['y']-pay
             
@@ -113,3 +115,4 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0]):
         f=open(stgout, mode='wb') # writing binary
         f.write(bytecode)
         f.close()
+        print('Wrote ' + stgout + ' with ' + str(counter) + ' locations.')
