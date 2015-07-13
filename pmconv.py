@@ -3,22 +3,21 @@ import struct, binascii, math
 
 
 # generates stage file with same name as platemap, .stg extension
-#def orbPM(pm, zstg, xoff=0, yoff=0):
-def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctmod=0):
-#    xorg=100-xtweak #tweak the left edge origin (orbis motor can travel ~101mm +x)
+def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctmod=0, smpmod=0):
+# xorg=100-xtweak #tweak the left edge origin (orbis motor can travel ~101mm +x)
     if not 0<=zstg<=100:
         print 'Invalid z-height'
     else:
         # assume pm in current working directory
         dlist=readsingleplatemaptxt(pm)
         
-        #a, ax, ay, b, bx, by, c, cx, cy : sample, x-coord, y-coord (orbis convention +x left)
-        #a=origin, b=+ydiff, c=+xdiff (a-b and a-c vectors must be orthogonal)
-        slist=[i['Sample'] for i in dlist]
+        # a, ax, ay, b, bx, by, c, cx, cy : sample, x-coord, y-coord (orbis convention +x left)
+        # a=origin, b=+ydiff, c=+xdiff (a-b and a-c vectors must be orthogonal)
+        slist=[d['Sample'] for d in dlist]
         aind=slist.index(a)
         bind=slist.index(b)
         cind=slist.index(c)
-        
+
         #PM coords        
         pax=dlist[aind]['x']
         pay=dlist[aind]['y']
@@ -27,7 +26,7 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctm
         pcx=dlist[cind]['x']
         pcy=dlist[cind]['y']
         
-        #PM x & y diffs (origin sample A)
+        # PM x & y diffs (origin sample A)
         pabx=pbx-pax
         paby=pby-pay
         pab=(pabx**2+paby**2)**0.5
@@ -35,7 +34,7 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctm
         pacy=pcy-pay
         pac=(pacx**2+pacy**2)**0.5
         
-        #Orbis x & y diffs (origin sample A)
+        # Orbis x & y diffs (origin sample A)
         sabx=ax-bx
         saby=by-ay
         sab=(sabx**2+saby**2)**0.5
@@ -43,14 +42,12 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctm
         sacy=cy-ay
         sac=(sacx**2+sacy**2)**0.5
         
-        rac=math.atan(sacy/sacx)
-        rab=math.atan(sabx/saby)
-        rot=rac #epson printer has non-linear elongation in y, use x instead
+        rot=math.atan(sacy/sacx) # epson printer has non-linear elongation in y, use x instead
 
         skx=sac/pac
         sky=sab/pab
         
-        print('x_skew = ' + str(skx) + ', y_skew = ' + str(sky) + ' , rot = ' + str(rot))
+        print('x_skew = ' + "{:.3f}".format(skx) + ', y_skew = ' + "{:.3f}".format(sky) + ' , rot = ' + "{:.3f}".format(rot))
 			
         # empty strings
         index=''
@@ -67,16 +64,18 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctm
               continue
             if pctmod > 0 and sum([100*d[i]%pctmod for i in ['A', 'B', 'C', 'D']]) > 0:
               continue
-            xn=d['x']-pax
+            if smpmod > 0 and d['Sample']%smpmod > 0:
+              continue
+            xn=d['x']-pax # offset by new origin at sample A
             yn=d['y']-pay
             
-            xr=xn*math.cos(rot)-yn*math.sin(rot) # rotate first
+            xr=xn*math.cos(rot)-yn*math.sin(rot) # rotate first around sample A
             yr=xn*math.sin(rot)+yn*math.cos(rot)
             
-            xsk=xr*skx # skew rotated coord
+            xsk=xr*skx # skewed and rotated coord
             ysk=yr*sky
             
-            xstg=ax-xsk+xtweak
+            xstg=ax-xsk+xtweak # restore stage origin wrt sample A
             ystg=ay+ysk
             
             checkx=0<=xstg<=100
