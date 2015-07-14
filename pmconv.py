@@ -1,9 +1,10 @@
 from readplatemap import readsingleplatemaptxt
-import struct, binascii, math
+import struct, binascii
+import numpy as np
 
 
 # generates stage file with same name as platemap, .stg extension
-def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctmod=0, smpmod=0):
+def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[], pctmod=0, smpmod=0):
 # xorg=100-xtweak #tweak the left edge origin (orbis motor can travel ~101mm +x)
     if not 0<=zstg<=100:
         print 'Invalid z-height'
@@ -25,62 +26,71 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctm
         pby=dlist[bind]['y']
         pcx=dlist[cind]['x']
         pcy=dlist[cind]['y']
-        
-        # PM x & y diffs (origin sample A)
-        pabx=pbx-pax
-        paby=pby-pay
-        pab=(pabx**2+paby**2)**0.5
-        pacx=pcx-pax
-        pacy=pcy-pay
-        pac=(pacx**2+pacy**2)**0.5
-        
-        # Orbis x & y diffs (origin sample A)
-        sabx=ax-bx
-        saby=by-ay
-        sab=(sabx**2+saby**2)**0.5
-        sacx=ax-cx
-        sacy=cy-ay
-        sac=(sacx**2+sacy**2)**0.5
-        
-        rot=math.atan(sacy/sacx) # epson printer has non-linear elongation in y, use x instead
 
-        skx=sac/pac
-        sky=sab/pab
-        
+        # PM x & y diffs (origin sample A)
+        pabx=np.float32(pbx-pax)
+        paby=np.float32(pby-pay)
+        pab=np.float32((pabx**2+paby**2)**0.5)
+        pacx=np.float32(pcx-pax)
+        pacy=np.float32(pcy-pay)
+        pac=np.float32((pacx**2+pacy**2)**0.5)
+
+        # correct x-axis mirror
+        ax=np.float32(100-ax)
+        bx=np.float32(100-bx)
+        cx=np.float32(100-cx)
+
+        # Orbis x & y diffs (origin sample A)
+        sabx=np.float32(bx-ax)
+        saby=np.float32(by-ay)
+        sab=np.float32((sabx**2+saby**2)**0.5)
+        sacx=np.float32(cx-ax)
+        sacy=np.float32(cy-ay)
+        sac=np.float32((sacx**2+sacy**2)**0.5)
+
+        rot=np.arctan(sacy/sacx) # epson printer has non-linear elongation in y, use x instead
+
+        skx=np.float32(sac/pac)
+        sky=np.float32(sab/pab)
+
         print('x_skew = ' + "{:.3f}".format(skx) + ', y_skew = ' + "{:.3f}".format(sky) + ' , rot = ' + "{:.3f}".format(rot))
-			
+        	
         # empty strings
         index=''
         positions=''
-        
+
         # assemble long strings of bytes (as hex) then unhexlify and write to binary file                
         seperator='0000DD24664052B8884298AEC04285EBB140BE9F3A40486186422F1DC242C3F590400000'
         seperator=seperator+(struct.pack('x')*60).encode('hex')
-        
+
         counter=0
         
         for d in dlist:
-            if d['code'] not in keepcodes:
-              continue
-            if pctmod > 0 and sum([100*d[i]%pctmod for i in ['A', 'B', 'C', 'D']]) > 0:
-              continue
+            if len(keepcodes)!=0:
+                if d['code'] not in keepcodes:
+                    continue
+            compsum=np.sum([d[i] for i in ['A', 'B', 'C', 'D']])
+            if pctmod > 0 and compsum > 0:
+                if any([np.float32(100*d[i]/compsum)%pctmod > 0 for i in ['A', 'B', 'C', 'D']]):
+                    # print 'Skipped ' + str(d['Sample']) + ' ' + str([d[i] for i in ['A', 'B', 'C', 'D']])
+                    continue
             if smpmod > 0 and d['Sample']%smpmod > 0:
-              continue
-            xn=d['x']-pax # offset by new origin at sample A
-            yn=d['y']-pay
-            
-            xr=xn*math.cos(rot)-yn*math.sin(rot) # rotate first around sample A
-            yr=xn*math.sin(rot)+yn*math.cos(rot)
-            
-            xsk=xr*skx # skewed and rotated coord
-            ysk=yr*sky
-            
-            xstg=ax-xsk+xtweak # restore stage origin wrt sample A
-            ystg=ay+ysk
-            
+                continue
+            xn=np.float32(d['x']-pax) # offset by new origin at sample A
+            yn=np.float32(d['y']-pay)
+
+            xr=np.float32(xn*np.cos(rot)-yn*np.sin(rot)) # rotate first around sample A
+            yr=np.float32(xn*np.sin(rot)+yn*np.cos(rot))
+
+            xsk=np.float32(xr*skx) # skewed and rotated coord
+            ysk=np.float32(yr*sky)
+
+            xstg=np.float32(100-(ax+xsk+xtweak)) # restore stage origin wrt sample A
+            ystg=np.float32(ay+ysk)
+
             checkx=0<=xstg<=100
             checky=0<=ystg<=100
-            
+
             if checkx and checky:
                 counter+=1
                 i=struct.pack('<h', counter)# entry index (16-bit short?, 2 bytes), don't use sample number in case we remove out-of-range samples
@@ -97,7 +107,7 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctm
                 p=p.encode('hex')
                 index+=i
                 positions+=p
-        
+
         # form header string, need to know # of in-range samples so this comes after for loop
         header=struct.pack('<b',15)
         header+=struct.pack('x')*15
@@ -105,10 +115,10 @@ def orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes=[0], pctm
         header+=struct.pack('<h', counter)
         header+=struct.pack('x')*20
         header=header.encode('hex')
-        
+
         # concatenate hex string and convert to byte code
         bytecode=binascii.unhexlify(header+index+seperator+positions)
-        
+
         #os.chdir('/home/dan/code/orbisTools')
         stgout=pm[:-3]+'stg'
         f=open(stgout, mode='wb') # writing binary

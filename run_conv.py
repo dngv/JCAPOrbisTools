@@ -1,7 +1,8 @@
 from pmconv import *
 pm='0037-04-0730-mp.txt'
-keepcodes=[0, 2]
-pctmod=10
+keepcodes=[]
+pctmod=0
+smpmod=0
 zstg=97.500
 xtweak=0
 a=1808
@@ -15,4 +16,4 @@ cx=18.760
 cy=25.390
 
 
-orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes, pctmod)
+orbPM(pm, zstg, xtweak, a, ax, ay, b, bx, by, c, cx, cy, keepcodes, pctmod, smpmod)
